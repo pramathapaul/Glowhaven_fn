@@ -65,6 +65,12 @@ const Navbar = () => {
     setIsMenuOpen(false)
   }
 
+  const handleLogout = () => {
+    logout()
+    setIsMenuOpen(false)
+    navigate('/')
+  }
+
   return (
     <header className="fixed top-0 w-full z-50 bg-surface/80 glass-header shadow-sm transition-all duration-300">
       <nav className="flex justify-between items-center w-full px-margin-mobile md:px-margin-desktop py-4 max-w-container-max mx-auto">
