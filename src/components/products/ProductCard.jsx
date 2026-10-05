@@ -2,7 +2,14 @@ import React from 'react'
 import { Link } from 'react-router-dom'
 import { useCart } from '../../contexts/CartContext'
 
-const ProductCard = ({ product }) => {
+const shortenDesc = (desc, ratio = 1 / 3) => {
+  if (!desc) return ''
+  const limit = Math.max(1, Math.floor(desc.length * ratio))
+  if (desc.length <= limit) return desc
+  return `${desc.slice(0, limit).trim().replace(/[\s,.;:!?-]+$/, '')}...`
+}
+
+const ProductCard = ({ product, compact = false }) => {
   const { addItem } = useCart()
 
   const handleAddToCart = (e) => {
@@ -45,7 +52,7 @@ const ProductCard = ({ product }) => {
 
   return (
     <Link to={`/product/${productId}`} className="group flex flex-col product-card-zoom">
-      <div className="relative aspect-square overflow-hidden rounded-2xl bg-secondary-container mb-stack-md shadow-[0_10px_30px_rgba(244,194,194,0.15)]">
+      <div className={`relative overflow-hidden rounded-2xl bg-secondary-container mb-stack-md shadow-[0_10px_30px_rgba(244,194,194,0.15)] ${compact ? 'aspect-[4/3]' : 'aspect-square'}`}>
         <img 
           className="w-full h-full object-cover transition-transform duration-700 ease-out"
           src={product.img}
@@ -85,7 +92,7 @@ const ProductCard = ({ product }) => {
         <button 
           onClick={handleAddToCart}
           disabled={totalStock <= 0}
-          className={`absolute bottom-4 left-1/2 -translate-x-1/2 w-[80%] py-3 rounded-full font-label-caps text-label-caps opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 backdrop-blur-md ${
+          className={`hidden sm:block absolute bottom-4 left-1/2 -translate-x-1/2 w-[80%] py-3 rounded-full font-label-caps text-label-caps opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 transition-all duration-300 backdrop-blur-md ${
             totalStock > 0 
               ? 'bg-on-background/90 text-white' 
               : 'bg-gray-400/90 text-gray-200 cursor-not-allowed'
@@ -97,7 +104,9 @@ const ProductCard = ({ product }) => {
       </div>
       <div className="flex flex-col space-y-1">
         <h3 className="font-playfair text-on-surface text-[18px] xl:text-[16px]">{product.name}</h3>
-        <p className="text-outline text-body-md xl:text-sm">{product.desc}</p>
+        <p className={`text-outline ${compact ? 'text-xs' : 'text-body-md xl:text-sm'} line-clamp-2`}>
+          {compact ? shortenDesc(product.desc) : product.desc}
+        </p>
         <div className="flex items-center gap-3 mt-1">
           <p className="font-semibold text-primary">₹{product.price.toFixed(2)}</p>
           {product.mrp && product.mrp > product.price && (
