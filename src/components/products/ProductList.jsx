@@ -67,10 +67,10 @@ const ProductList = () => {
           <div className="h-6 bg-secondary-container rounded w-32 animate-pulse"></div>
           <div className="h-6 bg-secondary-container rounded w-24 animate-pulse"></div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-gutter">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-gutter">
           {skeletonItems.map((index) => (
             <div key={`skeleton-${index}`} className="animate-pulse">
-              <div className="aspect-square bg-secondary-container rounded-2xl"></div>
+              <div className="aspect-[4/3] bg-secondary-container rounded-2xl"></div>
               <div className="h-4 bg-secondary-container rounded mt-4 w-3/4"></div>
               <div className="h-4 bg-secondary-container rounded mt-2 w-1/2"></div>
             </div>
@@ -149,9 +149,9 @@ const ProductList = () => {
       </div>
       
       {/* Product Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-gutter">
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-gutter">
         {products.map((product) => (
-          <ProductCard key={product._id || product.id} product={product} />
+          <ProductCard key={product._id || product.id} product={product} compact />
         ))}
       </div>
     </>
