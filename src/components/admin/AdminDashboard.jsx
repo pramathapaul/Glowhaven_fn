@@ -165,9 +165,14 @@ const AdminDashboard = () => {
             <p className="text-on-surface-variant">Manage orders, invoices, and store performance.</p>
           </div>
         </div>
-        <Link to="/admin/products" className="bg-primary text-on-primary px-6 py-2 rounded-full font-label-caps text-label-caps hover:bg-on-background transition-colors">
-          Manage Products
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link to="/admin/promos" className="border border-primary text-primary px-6 py-2 rounded-full font-label-caps text-label-caps hover:bg-primary hover:text-on-primary transition-colors">
+            Promo Codes
+          </Link>
+          <Link to="/admin/products" className="bg-primary text-on-primary px-6 py-2 rounded-full font-label-caps text-label-caps hover:bg-on-background transition-colors">
+            Manage Products
+          </Link>
+        </div>
       </div>
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

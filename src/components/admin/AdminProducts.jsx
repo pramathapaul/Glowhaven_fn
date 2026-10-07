@@ -157,7 +157,12 @@ const AdminProducts = () => {
     <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop pt-32 pb-stack-xl">
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="font-playfair text-headline-md">Manage Products</h1>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="font-playfair text-headline-md">Manage Products</h1>
+            <span className="bg-primary-container text-primary px-3 py-1 rounded-full font-label-caps text-label-caps">
+              Total: {products.length} {products.length === 1 ? 'Product' : 'Products'}
+            </span>
+          </div>
           <p className="text-on-surface-variant">Add, edit, or remove products from your store</p>
         </div>
         <button
