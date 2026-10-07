@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useCart } from '../contexts/CartContext'
 import { useAuth } from '../contexts/AuthContext'
+import { API_URL } from '../api/config'
 
 const CheckoutPage = () => {
   const navigate = useNavigate()
@@ -10,6 +11,20 @@ const CheckoutPage = () => {
 
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState({})
+
+  // Promo code state
+  const [promoInput, setPromoInput] = useState('')
+  const [appliedPromo, setAppliedPromo] = useState(null)
+  const [promoMessage, setPromoMessage] = useState(null)
+  const [applyingPromo, setApplyingPromo] = useState(false)
+
+  // Order totals (promo discount applied to subtotal)
+  const discount = appliedPromo ? appliedPromo.discount : 0
+  const subtotal = totalPrice
+  const discountedSubtotal = Math.max(0, subtotal - discount)
+  const shipping = discountedSubtotal > 1000 ? 0 : 50
+  const tax = 0
+  const total = discountedSubtotal + shipping + tax
 
   // WhatsApp number (replace with your actual number)
   const WHATSAPP_NUMBER = '9234567890' // Replace with your WhatsApp number
@@ -41,6 +56,88 @@ const CheckoutPage = () => {
     }
   }, [user, navigate])
 
+  // Keep the applied promo in sync when the cart total changes
+  useEffect(() => {
+    if (!appliedPromo) return
+    const revalidate = async () => {
+      try {
+        const token = localStorage.getItem('glowHavenToken')
+        const response = await fetch(`${API_URL}/promo-codes/validate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            code: appliedPromo.code,
+            subtotal: totalPrice,
+            items: items.map(item => ({ product: item.id, quantity: item.quantity }))
+          })
+        })
+        const data = await response.json()
+        if (data.success) {
+          setAppliedPromo(data.data)
+        } else {
+          setAppliedPromo(null)
+          setPromoMessage({ type: 'error', text: data.message || 'Promo code no longer applies' })
+        }
+      } catch (err) {
+        console.error('Error re-validating promo code:', err)
+      }
+    }
+    revalidate()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalPrice, items])
+
+  const handleApplyPromo = async () => {
+    const code = promoInput.trim()
+    if (!code) return
+
+    setApplyingPromo(true)
+    setPromoMessage(null)
+    try {
+      const token = localStorage.getItem('glowHavenToken')
+      if (!token) {
+        setPromoMessage({ type: 'error', text: 'Please login to apply a promo code' })
+        return
+      }
+
+      const response = await fetch(`${API_URL}/promo-codes/validate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          code,
+          subtotal: totalPrice,
+          items: items.map(item => ({ product: item.id, quantity: item.quantity }))
+        })
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        setAppliedPromo(data.data)
+        setPromoInput(data.data.code)
+        setPromoMessage({ type: 'success', text: `Promo code "${data.data.code}" applied!` })
+      } else {
+        setAppliedPromo(null)
+        setPromoMessage({ type: 'error', text: data.message || 'Invalid promo code' })
+      }
+    } catch (err) {
+      console.error('Error applying promo code:', err)
+      setPromoMessage({ type: 'error', text: 'Failed to apply promo code' })
+    } finally {
+      setApplyingPromo(false)
+    }
+  }
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null)
+    setPromoInput('')
+    setPromoMessage(null)
+  }
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
     setFormData(prev => ({
@@ -69,11 +166,6 @@ const CheckoutPage = () => {
   }
 
   const generateWhatsAppMessage = (orderData) => {
-    const subtotal = totalPrice
-    const shipping = subtotal > 1000 ? 0 : 50
-    const tax = 0
-    const total = subtotal + shipping + tax
-
     // Build the order items list
     let itemsList = ''
     items.forEach((item, index) => {
@@ -108,7 +200,7 @@ ${itemsList}
 💰 *Order Summary*
 ━━━━━━━━━━━━━━━━━━━━
 Subtotal: ₹${subtotal.toFixed(2)}
-Shipping: ${shipping === 0 ? 'FREE' : `₹${shipping.toFixed(2)}`}
+${appliedPromo ? `Promo (${appliedPromo.code}): -₹${discount.toFixed(2)}\n` : ''}Shipping: ${shipping === 0 ? 'FREE' : `₹${shipping.toFixed(2)}`}
 Tax: ₹0.00
 ━━━━━━━━━━━━━━━━━━━━
 *TOTAL: ₹${total.toFixed(2)}*
@@ -136,9 +228,9 @@ Thank you for choosing Glow Haven! ✨
       }
 
       const subtotal = totalPrice
-      const shipping = subtotal > 1000 ? 0 : 50
+      const shipping = discountedSubtotal > 1000 ? 0 : 50
       const tax = 0
-      const total = subtotal + shipping + tax
+      const total = discountedSubtotal + shipping + tax
 
       // 1. Create order in database
       const orderData = {
@@ -164,6 +256,7 @@ Thank you for choosing Glow Haven! ✨
         shippingCost: shipping,
         tax: tax,
         total: total,
+        promoCode: appliedPromo ? appliedPromo.code : undefined,
         notes: formData.orderNotes || 'Order placed via WhatsApp'
       }
 
@@ -202,16 +295,15 @@ Thank you for choosing Glow Haven! ✨
 
     } catch (error) {
       console.error('❌ Error placing order:', error)
+      if (error.message && /already used|usage limit|paused|expired|invalid promo/i.test(error.message)) {
+        handleRemovePromo()
+        setPromoMessage({ type: 'error', text: error.message })
+      }
       alert(error.message || 'Failed to place order. Please try again.')
     } finally {
       setLoading(false)
     }
   }
-
-  const subtotal = totalPrice
-  const shipping = subtotal > 1000 ? 0 : 50
-  const tax = 0
-  const total = subtotal + shipping + tax
 
   return (
     <div className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop pt-32 pb-stack-xl">
@@ -432,11 +524,66 @@ Thank you for choosing Glow Haven! ✨
               ))}
             </div>
 
+            {/* Promo code */}
+            <div className="mb-4">
+              {!appliedPromo ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={promoInput}
+                    onChange={(e) => setPromoInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleApplyPromo()}
+                    placeholder="Promo code"
+                    className="flex-1 min-w-0 bg-surface-container-low border-b-2 border-outline-variant focus:border-primary py-2 outline-none transition-colors uppercase text-sm"
+                  />
+                  <button
+                    onClick={handleApplyPromo}
+                    disabled={applyingPromo || !promoInput.trim()}
+                    className="bg-primary text-on-primary px-4 py-2 rounded-full font-label-caps text-label-caps hover:bg-on-background transition-colors disabled:opacity-50 text-xs"
+                  >
+                    {applyingPromo ? '...' : 'Apply'}
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm text-green-700 min-w-0">
+                      <span className="material-symbols-outlined text-base">local_offer</span>
+                      <span className="font-semibold truncate">{appliedPromo.code}</span>
+                      <span className="text-xs">-₹{appliedPromo.discount.toFixed(2)}</span>
+                    </div>
+                    <button
+                      onClick={handleRemovePromo}
+                      className="text-xs text-red-600 font-semibold hover:underline shrink-0"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  {appliedPromo.categories && appliedPromo.categories.length > 0 && (
+                    <p className="text-xs text-green-700/80 mt-1">
+                      Applies to: {appliedPromo.categories.join(', ')}
+                    </p>
+                  )}
+                </div>
+              )}
+              {promoMessage && (
+                <p className={`text-xs mt-2 ${promoMessage.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                  {promoMessage.text}
+                </p>
+              )}
+            </div>
+
             <div className="space-y-2 pt-4 border-t border-outline-variant">
               <div className="flex justify-between text-sm">
                 <span className="text-on-surface-variant">Subtotal ({items.length} items)</span>
                 <span>₹{subtotal.toFixed(2)}</span>
               </div>
+              {discount > 0 && (
+                <div className="flex justify-between text-sm text-green-600">
+                  <span>Promo discount ({appliedPromo.code})</span>
+                  <span className="font-semibold">-₹{discount.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-on-surface-variant">Shipping</span>
                 <span className="font-semibold">{shipping === 0 ? 'FREE' : `₹${shipping.toFixed(2)}`}</span>
